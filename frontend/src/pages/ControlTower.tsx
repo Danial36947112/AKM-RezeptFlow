@@ -1,6 +1,38 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import {
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronRight,
+  PlayCircle,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  TriangleAlert,
+} from "lucide-react";
+import { toast } from "sonner";
 import { api, STATUS_LABELS, type CaseRow, type Kpis } from "../api";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 function ageHours(date: string): number {
   return (Date.now() - new Date(date).getTime()) / 3600_000;
@@ -10,23 +42,69 @@ function AgeBadge({ createdAt, atRisk }: { createdAt: string; atRisk: boolean })
   const h = ageHours(createdAt);
   const color =
     atRisk || h >= 24
-      ? "bg-rf-danger/20 text-rf-danger border-rf-danger/30"
+      ? "border-destructive/30 text-destructive"
       : h >= 8
-        ? "bg-rf-warn/20 text-rf-warn border-rf-warn/30"
-        : "bg-rf-ok/15 text-rf-ok border-rf-ok/25";
+        ? "border-warn/40 text-warn-foreground"
+        : "border-ok/35 text-ok-foreground";
   return (
-    <span className={`text-xs px-2 py-0.5 rounded border ${color}`}>
+    <span className={`rounded border px-1.5 py-0.5 font-mono text-xs tabular-nums ${color}`}>
       {h < 1 ? "<1h" : `${Math.floor(h)}h`}
     </span>
   );
 }
 
+const columns: ColumnDef<CaseRow>[] = [
+  {
+    accessorKey: "external_id",
+    header: "Fall",
+    cell: ({ row }) => (
+      <span className="inline-flex items-center gap-2 font-mono text-sm font-medium">
+        {row.original.external_id}
+        {row.original.at_risk && (
+          <TriangleAlert className="size-3.5 text-destructive" strokeWidth={2} />
+        )}
+      </span>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ getValue }) => {
+      const status = getValue<string>();
+      return STATUS_LABELS[status] ?? status;
+    },
+  },
+  {
+    id: "age",
+    header: "Alter",
+    accessorFn: (row) => ageHours(row.created_at),
+    cell: ({ row }) => (
+      <AgeBadge createdAt={row.original.created_at} atRisk={row.original.at_risk} />
+    ),
+  },
+  {
+    accessorKey: "owner",
+    header: "Zuständig",
+    cell: ({ getValue }) => (
+      <span className="text-muted-foreground">{getValue<string | null>() ?? "—"}</span>
+    ),
+  },
+  {
+    id: "open",
+    header: "",
+    enableSorting: false,
+    cell: () => <ChevronRight className="size-4 text-muted-foreground" strokeWidth={2} />,
+  },
+];
+
 export default function ControlTower() {
+  const navigate = useNavigate();
   const [cases, setCases] = useState<CaseRow[]>([]);
   const [kpis, setKpis] = useState<Kpis | null>(null);
   const [filter, setFilter] = useState<"all" | "exception" | "atRisk">("all");
+  const [search, setSearch] = useState("");
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [loading, setLoading] = useState(true);
-  const [actionMsg, setActionMsg] = useState("");
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -55,150 +133,210 @@ export default function ControlTower() {
     load();
   }, [load]);
 
+  const table = useReactTable({
+    data: cases,
+    columns,
+    state: { sorting, globalFilter: search },
+    onSortingChange: setSorting,
+    onGlobalFilterChange: setSearch,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    globalFilterFn: (row, _columnId, value) => {
+      const needle = String(value).toLowerCase();
+      const r = row.original as CaseRow;
+      return (
+        r.external_id.toLowerCase().includes(needle) ||
+        (r.owner ?? "").toLowerCase().includes(needle) ||
+        (STATUS_LABELS[r.status] ?? r.status).toLowerCase().includes(needle)
+      );
+    },
+  });
+
   async function handleDemoEvent() {
-    setActionMsg("Erzeuge Demo-Ereignis…");
-    const res = await api.createDemoEvent("happy-path");
-    setActionMsg(`Fall ${res.case.case.external_id} erstellt`);
-    await load();
+    const t = toast.loading("Erzeuge Demo-Ereignis…");
+    try {
+      const res = await api.createDemoEvent("happy-path");
+      toast.success(`Fall ${res.case.case.external_id} erstellt`, { id: t });
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message || "Demo-Ereignis fehlgeschlagen", { id: t });
+    }
   }
 
   async function handleScanDue() {
-    setActionMsg("Fällige Fälle prüfen…");
-    const res = await api.scanDue();
-    setActionMsg(`${res.scanned} geprüft, ${res.actions.length} Aktionen`);
-    await load();
+    const t = toast.loading("Fällige Fälle prüfen…");
+    try {
+      const res = await api.scanDue();
+      toast.success(`${res.scanned} geprüft, ${res.actions.length} Aktionen`, { id: t });
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message || "Prüfung fehlgeschlagen", { id: t });
+    }
   }
 
   async function handleReset() {
-    await api.resetDemo();
-    setActionMsg("Demo-Daten zurückgesetzt");
-    await load();
+    try {
+      await api.resetDemo();
+      toast.success("Demo-Daten zurückgesetzt");
+      await load();
+    } catch (e) {
+      toast.error((e as Error).message || "Reset fehlgeschlagen");
+    }
   }
+
+  const stats = kpis
+    ? [
+        { label: "Offen", value: kpis.openCount },
+        { label: "Gefährdet", value: kpis.atRiskCount, warn: true },
+        { label: "Überfällig", value: kpis.overdueCount, warn: true },
+        { label: "Heute erledigt", value: kpis.completedToday },
+      ]
+    : [];
 
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-rf-danger/40 bg-rf-danger/10 px-4 py-3 text-rf-danger text-sm">
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
       )}
-      {kpis && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            { label: "Offen", value: kpis.openCount },
-            { label: "Gefährdet", value: kpis.atRiskCount, warn: true },
-            { label: "Überfällig", value: kpis.overdueCount, warn: true },
-            { label: "Heute erledigt", value: kpis.completedToday },
-          ].map((k, i) => (
-            <div
-              key={k.label}
-              className="rounded-xl border border-rf-border bg-rf-surface/60 p-4 backdrop-blur-sm animate-fade-up"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              <p className="text-rf-muted text-xs uppercase tracking-wider">{k.label}</p>
-              <p
-                className={`text-2xl font-semibold mt-1 ${k.warn ? "text-rf-warn" : "text-rf-text"}`}
+
+      {stats.length > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 border-b border-border pb-4 text-sm">
+          {stats.map((s) => (
+            <div key={s.label} className="flex items-baseline gap-1.5">
+              <span
+                className={`font-mono text-lg font-semibold tabular-nums ${
+                  s.warn ? "text-warn-foreground" : "text-foreground"
+                }`}
               >
-                {k.value}
-              </p>
+                {s.value}
+              </span>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                {s.label}
+              </span>
             </div>
           ))}
         </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-lg border border-rf-border bg-rf-surface/50 p-1">
+        <div className="flex rounded-md border border-border p-0.5">
           {(["all", "exception", "atRisk"] as const).map((f) => (
             <button
               key={f}
               type="button"
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
-                filter === f ? "bg-rf-accent text-white" : "text-rf-muted hover:text-rf-text"
+              className={`rounded-[5px] px-3 py-1.5 text-sm transition-colors active:scale-[0.98] ${
+                filter === f
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {f === "all" ? "Alle" : f === "exception" ? "Ausnahmen" : "Gefährdet"}
             </button>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={handleDemoEvent}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-rf-accent hover:bg-rf-accent-dim text-white transition-colors"
-        >
-          Demo-Ereignis erzeugen
-        </button>
-        <button
-          type="button"
-          onClick={handleScanDue}
-          className="px-4 py-2 text-sm rounded-lg border border-rf-border hover:bg-rf-surface-2 transition-colors"
-        >
-          Fällige prüfen
-        </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="px-4 py-2 text-sm rounded-lg border border-rf-border text-rf-muted hover:text-rf-text transition-colors"
-        >
-          Reset
-        </button>
-        {actionMsg && <span className="text-sm text-rf-muted">{actionMsg}</span>}
+
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Suche…"
+            className="w-40 pl-8"
+          />
+        </div>
+
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button onClick={handleDemoEvent}>
+            <PlayCircle className="size-4" strokeWidth={2} />
+            Demo-Ereignis
+          </Button>
+          <Button variant="outline" onClick={handleScanDue}>
+            <RefreshCw className="size-4" strokeWidth={2} />
+            Fällige prüfen
+          </Button>
+          <ConfirmDialog
+            title="Demo-Daten zurücksetzen?"
+            description="Alle Fälle, Ereignisse und Ausnahmen werden auf den Ausgangszustand zurückgesetzt. Dies kann nicht rückgängig gemacht werden."
+            confirmLabel="Zurücksetzen"
+            onConfirm={handleReset}
+            trigger={
+              <Button variant="outline">
+                <RotateCcw className="size-4" strokeWidth={2} />
+                Reset
+              </Button>
+            }
+          />
+        </div>
       </div>
 
-      <div className="rounded-xl border border-rf-border bg-rf-surface/40 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-rf-border text-rf-muted text-left">
-              <th className="px-4 py-3 font-medium">Fall</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Alter</th>
-              <th className="px-4 py-3 font-medium">Zuständig</th>
-              <th className="px-4 py-3 font-medium" />
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-rf-muted">Laden…</td>
-              </tr>
-            ) : cases.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-rf-muted">
-                  Keine Fälle für diesen Filter
-                </td>
-              </tr>
-            ) : (
-              cases.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-rf-border/50 hover:bg-rf-surface-2/50 transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium">
-                    <Link to={`/fall/${c.external_id}`} className="hover:text-rf-accent">
-                      {c.external_id}
-                    </Link>
-                    {c.at_risk && (
-                      <span className="ml-2 text-xs text-rf-danger">Gefährdet</span>
+      <div className="overflow-hidden rounded-lg border border-border">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id} className="hover:bg-transparent">
+                {group.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                      <button
+                        type="button"
+                        onClick={header.column.getToggleSortingHandler()}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                      >
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getIsSorted() === "asc" ? (
+                          <ArrowUp className="size-3.5" />
+                        ) : header.column.getIsSorted() === "desc" ? (
+                          <ArrowDown className="size-3.5" />
+                        ) : (
+                          <ArrowUpDown className="size-3.5 opacity-40" />
+                        )}
+                      </button>
+                    ) : (
+                      flexRender(header.column.columnDef.header, header.getContext())
                     )}
-                  </td>
-                  <td className="px-4 py-3">{STATUS_LABELS[c.status] ?? c.status}</td>
-                  <td className="px-4 py-3">
-                    <AgeBadge createdAt={c.created_at} atRisk={c.at_risk} />
-                  </td>
-                  <td className="px-4 py-3 text-rf-muted">{c.owner ?? "—"}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      to={`/fall/${c.external_id}`}
-                      className="text-rf-accent hover:underline text-sm"
-                    >
-                      Öffnen
-                    </Link>
-                  </td>
-                </tr>
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                  Laden…
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="py-8 text-center text-muted-foreground">
+                  Keine Fälle für diesen Filter
+                </TableCell>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  tabIndex={0}
+                  onClick={() => navigate(`/fall/${row.original.external_id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") navigate(`/fall/${row.original.external_id}`);
+                  }}
+                  className="cursor-pointer"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

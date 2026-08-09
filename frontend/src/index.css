@@ -1,33 +1,118 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+@import "@fontsource-variable/jost";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: "DM Sans", system-ui, sans-serif;
-  --font-display: "Instrument Serif", Georgia, serif;
-  --color-rf-bg: #0f1419;
-  --color-rf-surface: #1a222d;
-  --color-rf-surface-2: #243040;
-  --color-rf-border: #2e3d52;
-  --color-rf-text: #e8edf4;
-  --color-rf-muted: #8b9cb3;
-  --color-rf-accent: #3d9a8b;
-  --color-rf-accent-dim: #2a6b5f;
-  --color-rf-warn: #e8a54b;
-  --color-rf-danger: #e05c5c;
-  --color-rf-ok: #4cb87a;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+  --font-heading: "Jost Variable", ui-sans-serif, system-ui, sans-serif;
+
+  /* Status colors — desaturated, distinct hues from the brand accent */
+  --color-warn: oklch(62% 0.15 70);
+  --color-warn-foreground: oklch(28% 0.06 70);
+  --color-ok: oklch(58% 0.13 152);
+  --color-ok-foreground: oklch(27% 0.05 152);
+}
+
+@theme inline {
+  --font-heading: var(--font-heading);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * Light theme derived from the real AKM Wundmanagement brand
+ * (measured from akm-wundmanagement.de): accent teal #2A7C6F →
+ * oklch(53.3% 0.081 180.6), warm cream background → oklch hue ~85.
+ * Every neutral is tinted toward one of those two hues rather than
+ * left achromatic, per a "Restrained" color strategy (tinted
+ * neutrals + one accent used sparingly).
+ */
+:root {
+  --background: oklch(98% 0.006 85);
+  --foreground: oklch(23% 0.018 195);
+  --card: oklch(98.5% 0.005 85);
+  --card-foreground: oklch(23% 0.018 195);
+  --popover: oklch(99% 0.004 85);
+  --popover-foreground: oklch(23% 0.018 195);
+  --primary: oklch(53.3% 0.081 180.6);
+  --primary-foreground: oklch(99% 0.005 85);
+  --secondary: oklch(94% 0.009 85);
+  --secondary-foreground: oklch(30% 0.02 195);
+  --muted: oklch(95% 0.008 85);
+  --muted-foreground: oklch(47% 0.02 195);
+  --accent: oklch(92% 0.025 180.6);
+  --accent-foreground: oklch(28% 0.04 180.6);
+  --destructive: oklch(55% 0.19 25);
+  --border: oklch(89% 0.011 85);
+  --input: oklch(89% 0.011 85);
+  --ring: oklch(53.3% 0.081 180.6);
+  --chart-1: oklch(53.3% 0.081 180.6);
+  --chart-2: oklch(58% 0.13 152);
+  --chart-3: oklch(62% 0.15 70);
+  --chart-4: oklch(58% 0.11 250);
+  --chart-5: oklch(55% 0.19 25);
+  --radius: 0.5rem;
+  --sidebar: oklch(98% 0.006 85);
+  --sidebar-foreground: oklch(23% 0.018 195);
+  --sidebar-primary: oklch(53.3% 0.081 180.6);
+  --sidebar-primary-foreground: oklch(99% 0.005 85);
+  --sidebar-accent: oklch(92% 0.025 180.6);
+  --sidebar-accent-foreground: oklch(28% 0.04 180.6);
+  --sidebar-border: oklch(89% 0.011 85);
+  --sidebar-ring: oklch(53.3% 0.081 180.6);
 }
 
 body {
-  @apply bg-rf-bg text-rf-text font-sans antialiased;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61, 154, 139, 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(45, 90, 120, 0.15), transparent);
-  min-height: 100vh;
+  @apply bg-background text-foreground font-sans antialiased;
+  min-height: 100dvh;
 }
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -36,11 +121,26 @@ body {
 }
 
 .animate-fade-up {
-  animation: fade-up 0.45s ease-out both;
+  animation: fade-up 0.35s ease-out both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-up {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

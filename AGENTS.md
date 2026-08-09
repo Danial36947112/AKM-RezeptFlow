@@ -8,10 +8,11 @@ RezeptFlow is an npm workspaces monorepo: a Fastify workflow API and a React/Vit
 - `backend/src/adapters` — `CrmAdapter` / Mock Zoho projection; LLM extractor (OpenCode Zen + fixture fallback)
 - `backend/src/routes` — REST, webhooks, KPIs, demo helpers
 - `frontend/src/pages` — three screens only: Leitstand, Falldetail (incl. LLM panel), Kennzahlen
+- `frontend/src/components` — Layout, ConfirmDialog, ArmToConfirmButton, Mark; `ui/` holds shadcn/ui primitives (Tailwind v4 + Radix)
 - `data/` — SQLite DB path, `seed.json`, webhook/LLM fixtures (resolve paths from repo root via `.env`)
 - `automation/` — exported n8n workflows; optional `docker compose --profile automation`
 - `docs/`, `demo/` — architecture, Zoho mapping, demo script
-- OpenSpec under `openspec/` is for later changes; the MVP was built without an OpenSpec change cycle
+- OpenSpec under `openspec/` (with `.cursor/skills` opsx-* helpers) is for later change cycles; MVP shipped without one
 
 **Ownership:** SQLite owns case/timeline/tasks; Mock Zoho is a sync projection; live demos call Node directly (n8n is optional).
 
@@ -33,7 +34,8 @@ Copy `.env.example` → `.env`. Leave `frontend/.env` `VITE_API_URL` empty local
 ## Coding Style & Naming Conventions
 
 - TypeScript ESM (`"type": "module"`); backend `strict: true`
-- No ESLint/Prettier config in-repo — match existing Fastify/React patterns
+- Frontend path alias `@/*` → `frontend/src/*` (Vite + tsconfig); UI tokens live in `frontend/src/index.css` (OKLCH light theme, Jost headings + Geist body/mono)
+- No ESLint/Prettier config in-repo — match existing Fastify/React and shadcn patterns
 - German UI copy; English README/docs
 - Domain statuses are uppercase enums (`AWAITING_ORIGINAL`); adapters stay replaceable behind interfaces
 
@@ -43,4 +45,4 @@ Vitest in `backend/tests/` (`vitest run`). Cover state transitions, webhook idem
 
 ## Commit & Pull Request Guidelines
 
-No commits on `master` yet — no established message convention. Prefer short, imperative messages focused on why (e.g. `fix env load so Zen key is available`). Keep secrets out of PRs; document demo impact in the PR body when changing seed data or the interview path.
+History starts with a single imperative MVP commit on `master`. Prefer short, imperative messages focused on why (e.g. `fix env load so Zen key is available`). Keep secrets out of PRs; document demo impact in the PR body when changing seed data or the interview path.
