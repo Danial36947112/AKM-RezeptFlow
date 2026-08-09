@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+.env
+*.db
+*.db-shm
+*.db-wal
+data/rezeptflow.db
+data/mock-zoho/
+data/mock-zoho-test/
+data/test-rezeptflow.db
+backend/data/
+.cursor/
+.DS_Store
+*.log
+coverage/
+*.tsbuildinfo

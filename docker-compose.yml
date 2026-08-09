@@ -1,0 +1,57 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_PATH: /app/data/rezeptflow.db
+      MOCK_ZOHO_PATH: /app/data/mock-zoho
+      REMINDER_HOURS: 8
+      ESCALATION_HOURS: 24
+      DELIVERY_TARGET_HOURS: 48
+      ORDER_WEBHOOK_SECRET: demo-secret
+      OPENCODE_ZEN_API_KEY: ${OPENCODE_ZEN_API_KEY:-}
+      OPENCODE_ZEN_BASE_URL: https://opencode.ai/zen/v1
+      OPENCODE_ZEN_MODEL: deepseek-v4-flash-free
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: http://localhost:3001
+
+  n8n:
+    profiles: ["automation"]
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD:-admin}
+      WEBHOOK_URL: http://backend:3001
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./automation:/automation:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  n8n_data:

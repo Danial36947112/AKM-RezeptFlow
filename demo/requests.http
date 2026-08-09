@@ -1,0 +1,45 @@
+### Health
+GET http://localhost:3001/health
+
+### List cases
+GET http://localhost:3001/api/cases
+
+### Case detail
+GET http://localhost:3001/api/cases/AKM-DEMO-004
+
+### Prescription webhook
+POST http://localhost:3001/webhooks/prescription-requests
+Content-Type: application/json
+
+{
+  "sourceEventId": "AKM-DEMO-016",
+  "patientRef": "PAT-DEMO-016",
+  "physicianRef": "PRAX-DEMO-NORD",
+  "deliveryRef": "LIEF-DEMO-PFLEGE",
+  "materialRef": "MAT-WUNDVERBAND-A",
+  "fieldEmployeeRef": "FM-DEMO-03",
+  "idempotencyKey": "manual-test-016"
+}
+
+### Order status webhook
+POST http://localhost:3001/webhooks/order-status
+Content-Type: application/json
+x-webhook-secret: demo-secret
+
+{
+  "supplierRef": "SUP-DEMO-010",
+  "status": "shipped",
+  "idempotencyKey": "manual-order-010"
+}
+
+### Scan due cases
+POST http://localhost:3001/api/demo/scan-due
+
+### Reset demo data
+POST http://localhost:3001/api/demo/reset
+
+### KPIs
+GET http://localhost:3001/api/kpis
+
+### KPI CSV
+GET http://localhost:3001/api/kpis/export.csv

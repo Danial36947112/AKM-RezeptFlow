@@ -1,0 +1,5 @@
+{
+  "supplierRef": "SUP-DEMO-010",
+  "status": "shipped",
+  "idempotencyKey": "order-shipped-010"
+}

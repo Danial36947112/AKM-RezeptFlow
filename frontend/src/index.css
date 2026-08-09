@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
+  --color-rf-bg: #0f1419;
+  --color-rf-surface: #1a222d;
+  --color-rf-surface-2: #243040;
+  --color-rf-border: #2e3d52;
+  --color-rf-text: #e8edf4;
+  --color-rf-muted: #8b9cb3;
+  --color-rf-accent: #3d9a8b;
+  --color-rf-accent-dim: #2a6b5f;
+  --color-rf-warn: #e8a54b;
+  --color-rf-danger: #e05c5c;
+  --color-rf-ok: #4cb87a;
+}
+
+body {
+  @apply bg-rf-bg text-rf-text font-sans antialiased;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(61, 154, 139, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(45, 90, 120, 0.15), transparent);
+  min-height: 100vh;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
+}

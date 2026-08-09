@@ -1,0 +1,51 @@
+{
+  "name": "Waiting Case Scanner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 1 }]
+        }
+      },
+      "id": "schedule",
+      "name": "Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{$env.WEBHOOK_URL || 'http://backend:3001'}}/api/cases/due"
+      },
+      "id": "getDue",
+      "name": "GET Due Cases",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.WEBHOOK_URL || 'http://backend:3001'}}/api/demo/scan-due"
+      },
+      "id": "scan",
+      "name": "POST Scan Due",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300]
+    }
+  ],
+  "connections": {
+    "Schedule": {
+      "main": [[{ "node": "GET Due Cases", "type": "main", "index": 0 }]]
+    },
+    "GET Due Cases": {
+      "main": [[{ "node": "POST Scan Due", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "meta": {
+    "description": "Scheduled reminder scan via Node API. Live demo uses POST /api/demo/scan-due directly."
+  }
+}

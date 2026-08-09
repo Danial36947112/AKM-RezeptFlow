@@ -1,0 +1,9 @@
+{
+  "sourceEventId": "AKM-DEMO-016",
+  "patientRef": "PAT-DEMO-016",
+  "physicianRef": "PRAX-DEMO-NORD",
+  "deliveryRef": "LIEF-DEMO-PFLEGE",
+  "materialRef": "MAT-WUNDVERBAND-A",
+  "fieldEmployeeRef": "FM-DEMO-03",
+  "idempotencyKey": "webhook-demo-016"
+}
