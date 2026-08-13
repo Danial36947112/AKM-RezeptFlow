@@ -51,6 +51,26 @@ export function registerCaseRoutes(app: FastifyInstance, service: CaseService) {
     }
   });
 
+  app.patch("/api/cases/:id/owner", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const body = req.body as { version: number; owner: string };
+    try {
+      return service.assignOwner(id, body.owner, body.version);
+    } catch (e) {
+      return reply.status(400).send({ error: (e as Error).message });
+    }
+  });
+
+  app.post("/api/cases/:id/exceptions/:exceptionId/acknowledge", async (req, reply) => {
+    const { id, exceptionId } = req.params as { id: string; exceptionId: string };
+    const body = req.body as { version: number };
+    try {
+      return service.acknowledgeException(id, exceptionId, body.version);
+    } catch (e) {
+      return reply.status(400).send({ error: (e as Error).message });
+    }
+  });
+
   app.post("/api/cases/:id/extract/confirm", async (req, reply) => {
     const { id } = req.params as { id: string };
     const body = req.body as {

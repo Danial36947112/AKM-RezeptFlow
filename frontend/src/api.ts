@@ -20,12 +20,32 @@ export interface CaseRow {
 export interface CaseDetail {
   case: CaseRow;
   events: Array<Record<string, unknown>>;
-  tasks: Array<Record<string, unknown>>;
+  tasks: FollowUpTask[];
   orders: Array<Record<string, unknown>>;
-  exceptions: Array<Record<string, unknown>>;
+  exceptions: CaseException[];
   missingFields: string[];
   allowedTransitions: string[];
   transitionActions: Array<{ key: string; label: string; to: string }>;
+}
+
+export interface FollowUpTask {
+  id: string;
+  case_id: string;
+  type: string;
+  owner: string | null;
+  due_at: string | null;
+  status: string;
+  created_at: string;
+}
+
+export interface CaseException {
+  id: string;
+  case_id: string;
+  reason: string;
+  severity: string;
+  resolved_at: string | null;
+  resolution: string | null;
+  created_at: string;
 }
 
 export interface Kpis {
@@ -95,6 +115,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ version, proposal }),
     }),
+  assignOwner: (id: string, version: number, owner: string) =>
+    request<CaseDetail>(`/api/cases/${id}/owner`, {
+      method: "PATCH",
+      body: JSON.stringify({ version, owner }),
+    }),
+  acknowledgeException: (id: string, exceptionId: string, version: number) =>
+    request<CaseDetail>(`/api/cases/${id}/exceptions/${exceptionId}/acknowledge`, {
+      method: "POST",
+      body: JSON.stringify({ version }),
+    }),
   scanDue: () => request<{ scanned: number; actions: unknown[] }>("/api/demo/scan-due", { method: "POST" }),
   createDemoEvent: (template: "happy-path" | "incomplete") =>
     request<{ case: CaseDetail }>("/api/demo/create-event", {
@@ -122,4 +152,17 @@ export const FIELD_LABELS: Record<string, string> = {
   deliveryRef: "Lieferziel-Referenz",
   materialRef: "Materialgruppe",
   fieldEmployeeRef: "Feldmitarbeiter",
+};
+
+export const DEMO_OWNERS = ["Nora KRS", "Tim KRS", "Lea KRS"];
+
+export const TASK_TYPE_LABELS: Record<string, string> = {
+  follow_up: "Nachfassen",
+  missing_data: "Fehlende Daten",
+};
+
+export const TASK_STATUS_LABELS: Record<string, string> = {
+  open: "Offen",
+  done: "Erledigt",
+  cancelled: "Storniert",
 };

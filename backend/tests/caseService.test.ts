@@ -99,4 +99,43 @@ describe("CaseService", () => {
     expect(proposal.intent).toBe("ORIGINAL_PRESCRIPTION_RECEIVED");
     expect(proposal.source).toBe("fixture");
   });
+
+  it("completes an incomplete case when missing fields are filled", () => {
+    const before = service.getCaseById("AKM-DEMO-006");
+    expect(before?.case.status).toBe("INCOMPLETE");
+
+    const after = service.updateMissingData(
+      "AKM-DEMO-006",
+      { deliveryRef: "LIEF-DEMO-FIX" },
+      before!.case.version,
+    );
+
+    expect(after?.case.status).toBe("REQUEST_READY");
+    expect(after?.case.delivery_ref).toBe("LIEF-DEMO-FIX");
+    expect(after?.missingFields).toEqual([]);
+    expect(after?.exceptions.filter((ex) => !ex.resolved_at)).toHaveLength(0);
+  });
+
+  it("assigns a case owner without changing status", () => {
+    const before = service.getCaseById("AKM-DEMO-004")!;
+    const after = service.assignOwner("AKM-DEMO-004", "Tim KRS", before.case.version);
+
+    expect(after?.case.owner).toBe("Tim KRS");
+    expect(after?.case.status).toBe(before.case.status);
+  });
+
+  it("acknowledges an exception without changing case status", () => {
+    const before = service.getCaseById("AKM-DEMO-004")!;
+    const open = before.exceptions.find((ex) => !ex.resolved_at) as { id: string };
+    expect(open).toBeDefined();
+
+    const after = service.acknowledgeException(
+      "AKM-DEMO-004",
+      open.id,
+      before.case.version,
+    );
+
+    expect(after?.case.status).toBe(before.case.status);
+    expect(after?.exceptions.find((ex) => ex.id === open.id)?.resolved_at).toBeTruthy();
+  });
 });

@@ -134,6 +134,22 @@ export default function Dashboard() {
         )}
       </div>
 
+      {Object.keys(kpis.medianStageHours).length > 0 && (
+        <div className="rounded-lg border border-border">
+          <h2 className="border-b border-border px-5 py-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Medianzeit je Phase
+          </h2>
+          <ul className="divide-y divide-border px-5">
+            {Object.entries(kpis.medianStageHours).map(([status, hours]) => (
+              <li key={status} className="flex justify-between py-2.5 text-sm">
+                <span className="text-muted-foreground">{STATUS_LABELS[status] ?? status}</span>
+                <span className="font-mono tabular-nums">{hours.toFixed(1)}h</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <Button variant="outline" asChild>
         <a href={`${API_BASE}/api/kpis/export.csv`}>
           <Download className="size-4" strokeWidth={2} />

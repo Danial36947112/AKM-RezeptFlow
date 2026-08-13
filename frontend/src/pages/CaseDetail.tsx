@@ -10,8 +10,11 @@ import {
 import { toast } from "sonner";
 import {
   api,
+  DEMO_OWNERS,
   FIELD_LABELS,
   STATUS_LABELS,
+  TASK_STATUS_LABELS,
+  TASK_TYPE_LABELS,
   type CaseDetail,
   type ExtractionProposal,
 } from "../api";
@@ -30,6 +33,7 @@ export default function CaseDetailPage() {
   const [llmText, setLlmText] = useState(DEFAULT_LLM_TEXT);
   const [proposal, setProposal] = useState<ExtractionProposal | null>(null);
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
+  const [owner, setOwner] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -39,6 +43,7 @@ export default function CaseDetailPage() {
       const d = await api.getCase(id);
       setDetail(d);
       setProposal(null);
+      setOwner(d.case.owner ?? "");
       const vals: Record<string, string> = {};
       if (!d.case.patient_ref) vals.patientRef = "";
       if (!d.case.physician_ref) vals.physicianRef = "";
@@ -65,6 +70,7 @@ export default function CaseDetailPage() {
       }
       const updated = await api.updateMissingData(detail.case.id, detail.case.version, data);
       setDetail(updated);
+      setOwner(updated.case.owner ?? "");
       toast.success("Fehlende Daten gespeichert");
     } catch (e) {
       const msg = (e as Error).message;
@@ -81,6 +87,7 @@ export default function CaseDetailPage() {
     try {
       const updated = await api.transition(detail.case.id, eventType, detail.case.version);
       setDetail(updated);
+      setOwner(updated.case.owner ?? "");
       toast.success(`Status geändert: ${label}`);
     } catch (e) {
       const msg = (e as Error).message;
@@ -113,8 +120,47 @@ export default function CaseDetailPage() {
     try {
       const updated = await api.confirmExtract(detail.case.id, detail.case.version, proposal);
       setDetail(updated);
+      setOwner(updated.case.owner ?? "");
       setProposal(null);
       toast.success("Vorschlag angewendet");
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAssignOwner() {
+    if (!detail || !owner) return;
+    setBusy(true);
+    try {
+      const updated = await api.assignOwner(detail.case.id, detail.case.version, owner);
+      setDetail(updated);
+      setOwner(updated.case.owner ?? "");
+      toast.success("Zuständigkeit gespeichert");
+    } catch (e) {
+      const msg = (e as Error).message;
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAcknowledge(exceptionId: string) {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      const updated = await api.acknowledgeException(
+        detail.case.id,
+        exceptionId,
+        detail.case.version,
+      );
+      setDetail(updated);
+      setOwner(updated.case.owner ?? "");
+      toast.success("Ausnahme zur Kenntnis genommen");
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
@@ -167,6 +213,37 @@ export default function CaseDetailPage() {
           </p>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="owner" className="text-xs text-muted-foreground">
+            Zuständig
+          </Label>
+          <div className="flex gap-2">
+            <select
+              id="owner"
+              value={owner}
+              disabled={busy}
+              onChange={(e) => setOwner(e.target.value)}
+              className="h-8 min-w-0 flex-1 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {Array.from(new Set([...DEMO_OWNERS, c.owner].filter(Boolean) as string[])).map(
+                (name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ),
+              )}
+            </select>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy || !owner || owner === (c.owner ?? "")}
+              onClick={handleAssignOwner}
+            >
+              Speichern
+            </Button>
+          </div>
+        </div>
+
         {detail.transitionActions.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {detail.transitionActions.map((t) => (
@@ -204,6 +281,34 @@ export default function CaseDetailPage() {
               </div>
             ))}
           </dl>
+        </div>
+
+        <div>
+          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Aufgaben
+          </h2>
+          {detail.tasks.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">Keine Aufgaben</p>
+          ) : (
+            <ul className="mt-2 divide-y divide-border">
+              {detail.tasks.map((task) => (
+                <li key={task.id} className="py-2 text-sm">
+                  <div className="flex justify-between gap-2">
+                    <span>{TASK_TYPE_LABELS[task.type] ?? task.type}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {TASK_STATUS_LABELS[task.status] ?? task.status}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {task.owner ?? "—"}
+                    {task.due_at
+                      ? ` · ${new Date(task.due_at).toLocaleString("de-DE")}`
+                      : ""}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {detail.missingFields.length > 0 && (
@@ -331,8 +436,13 @@ export default function CaseDetailPage() {
               {detail.exceptions
                 .filter((ex) => !ex.resolved_at)
                 .map((ex) => (
-                  <li key={ex.id as string} className="text-warn-foreground">
-                    {ex.reason as string}
+                  <li key={ex.id} className="flex items-start justify-between gap-3">
+                    <span className="text-warn-foreground">{ex.reason}</span>
+                    <ArmToConfirmButton
+                      label="Zur Kenntnis"
+                      disabled={busy}
+                      onConfirm={() => handleAcknowledge(ex.id)}
+                    />
                   </li>
                 ))}
             </ul>

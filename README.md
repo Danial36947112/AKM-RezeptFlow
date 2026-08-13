@@ -60,6 +60,12 @@ docker compose --profile automation up --build
 
 Backup: 60–90s screen recording if live demo fails.
 
+## Screenshots
+
+| Leitstand | Falldetail | Kennzahlen |
+|-----------|------------|------------|
+| ![Leitstand](frontend/screenshots/leitstand.png) | ![Falldetail](frontend/screenshots/falldetail.png) | ![Kennzahlen](frontend/screenshots/kennzahlen.png) |
+
 ## Synthetic data only
 
 All patient/partner references are fictional. No real health data. GDPR production use would require legal review, access controls, and approved processors.

@@ -1,9 +1,9 @@
 # Screenshots
 
-Capture after UI polish:
+Captured from the running UI at ~1440×900 after the interview-path UI work.
 
 1. `leitstand.png` — Control tower with KPI strip and case table
-2. `falldetail.png` — Case detail with timeline and LLM panel
-3. `kennzahlen.png` — Dashboard charts
+2. `falldetail.png` — AKM-DEMO-004 with timeline, tasks, owner, and open exception
+3. `kennzahlen.png` — Dashboard charts plus median time per stage
 
-Run locally, open http://localhost:5173, capture at 1440×900.
+Re-capture locally: start backend and frontend, then open http://localhost:5173.

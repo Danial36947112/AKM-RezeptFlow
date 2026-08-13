@@ -359,24 +359,90 @@ export class CaseService {
     values.push(now());
     values.push(rowId);
 
-    this.db
-      .prepare(`UPDATE prescription_cases SET ${updates.join(", ")} WHERE id = ? AND version = ?`)
-      .run(...values, version);
+    this.db.exec("BEGIN");
+    try {
+      this.db
+        .prepare(`UPDATE prescription_cases SET ${updates.join(", ")} WHERE id = ? AND version = ?`)
+        .run(...values, version);
 
-    const updated = this.mapCase(
-      this.db.prepare("SELECT * FROM prescription_cases WHERE id = ?").get(rowId) as Record<
-        string,
-        unknown
-      >,
-    );
+      const updated = this.mapCase(
+        this.db.prepare("SELECT * FROM prescription_cases WHERE id = ?").get(rowId) as Record<
+          string,
+          unknown
+        >,
+      );
 
-    const missing = this.getMissingFields(updated);
-    if (missing.length === 0 && updated.status === "INCOMPLETE") {
-      this.updateCaseStatus(rowId, "REQUEST_READY", updated.version + 1);
-      this.resolveOpenExceptions(rowId, "Daten ergänzt");
+      const missing = this.getMissingFields(updated);
+      if (missing.length === 0 && updated.status === "INCOMPLETE") {
+        this.updateCaseStatus(rowId, "REQUEST_READY", updated.version);
+        this.resolveOpenExceptions(rowId, "Daten ergänzt");
+      }
+
+      this.recordEvent(rowId, "MISSING_DATA_UPDATED", "human", data);
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
     }
 
-    this.recordEvent(rowId, "MISSING_DATA_UPDATED", "human", data);
+    return this.getCaseById(rowId);
+  }
+
+  assignOwner(caseId: string, owner: string, version: number) {
+    const trimmed = owner.trim();
+    if (!trimmed) throw new Error("Owner is required");
+
+    const row = this.db
+      .prepare("SELECT * FROM prescription_cases WHERE id = ? OR external_id = ?")
+      .get(caseId, caseId) as Record<string, unknown> | undefined;
+    if (!row) throw new Error("Case not found");
+    if ((row.version as number) !== version) throw new Error("Version conflict");
+
+    const rowId = row.id as string;
+    const result = this.db
+      .prepare(
+        `UPDATE prescription_cases SET owner = ?, updated_at = ?, version = version + 1
+         WHERE id = ? AND version = ?`,
+      )
+      .run(trimmed, now(), rowId, version);
+    if (result.changes === 0) throw new Error("Version conflict");
+
+    this.recordEvent(rowId, "OWNER_ASSIGNED", "human", { owner: trimmed });
+    return this.getCaseById(rowId);
+  }
+
+  acknowledgeException(caseId: string, exceptionId: string, version: number) {
+    const row = this.db
+      .prepare("SELECT * FROM prescription_cases WHERE id = ? OR external_id = ?")
+      .get(caseId, caseId) as Record<string, unknown> | undefined;
+    if (!row) throw new Error("Case not found");
+    if ((row.version as number) !== version) throw new Error("Version conflict");
+
+    const rowId = row.id as string;
+    const exception = this.db
+      .prepare("SELECT * FROM exceptions WHERE id = ? AND case_id = ?")
+      .get(exceptionId, rowId) as Record<string, unknown> | undefined;
+    if (!exception) throw new Error("Exception not found");
+    if (exception.resolved_at) throw new Error("Exception already resolved");
+
+    const bump = this.db
+      .prepare(
+        `UPDATE prescription_cases SET updated_at = ?, version = version + 1
+         WHERE id = ? AND version = ?`,
+      )
+      .run(now(), rowId, version);
+    if (bump.changes === 0) throw new Error("Version conflict");
+
+    this.db
+      .prepare(
+        `UPDATE exceptions SET resolved_at = ?, resolution = ? WHERE id = ?`,
+      )
+      .run(now(), "Zur Kenntnis genommen", exceptionId);
+
+    this.recordEvent(rowId, "EXCEPTION_ACKNOWLEDGED", "human", {
+      exceptionId,
+      reason: exception.reason,
+    });
     return this.getCaseById(rowId);
   }
 
